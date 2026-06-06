@@ -7,12 +7,14 @@ The name keeps the Zheng He theme: Zheng He's treasure voyages sailed under the 
 ## Features
 
 - Unified `Provider` interface for chat, streaming, model listing, and TTS.
+- Separate `AgentProvider` interface for stateful agent runtimes.
 - Direct HTTP implementation using Go's standard `net/http` stack.
 - OpenAI-compatible provider core for Nous Portal, OpenAI, DeepSeek, xAI/Grok, Mistral, OpenRouter, Moonshot/Kimi, Perplexity, Qwen compatible mode, GitHub Copilot, LM Studio, Ollama, and llama.cpp.
 - Native adapters for Anthropic Claude, Google Gemini, and Cloudflare Workers AI.
-- Native builders for chat and text-to-speech requests.
+- Hermes Agent `/v1/responses` support for non-streaming and streaming agent runs.
+- Native builders for chat, text-to-speech, and agent requests.
 - Server-Sent Events streaming parser exposed through Go iterator syntax.
-- Extensible: implement `Provider` or wrap `OpenAICompatibleProvider` for more backends.
+- Extensible: implement `Provider`, `AgentProvider`, or wrap `OpenAICompatibleProvider` for more backends.
 
 ## Install
 
@@ -105,6 +107,36 @@ yongle.WithHeader("HTTP-Referer", "https://example.com")
 yongle.WithHeader("X-Title", "My App")
 ```
 
+## Hermes Agent runs
+
+Hermes Agent is exposed as a separate `AgentProvider` because it targets the higher-level OpenAI Responses-style `/v1/responses` endpoint rather than plain chat completions:
+
+```go
+agent := yongle.NewHermesAgentProvider(os.Getenv("API_SERVER_KEY"))
+
+run, err := yongle.NewAgentRunRequest("hermes-agent", "What files are in this project?").
+    Instructions("You are a helpful coding assistant.").
+    Store(true).
+    Build()
+if err != nil { log.Fatal(err) }
+
+resp, err := agent.Run(ctx, run)
+if err != nil { log.Fatal(err) }
+fmt.Println(resp.OutputText())
+```
+
+Streaming agent lifecycle events also use Go iterator syntax:
+
+```go
+stream, err := agent.StreamRun(ctx, run)
+if err != nil { log.Fatal(err) }
+
+for event, err := range stream {
+    if err != nil { log.Fatal(err) }
+    fmt.Print(event.OutputTextDelta())
+}
+```
+
 ## TTS
 
 OpenAI-compatible chat providers return `ErrUnsupported` for TTS by default. `OpenAIProvider` implements `/audio/speech`:
@@ -123,7 +155,7 @@ _ = os.WriteFile("hello.mp3", audio, 0644)
 
 ## Status
 
-This Go port now covers baochuan's core ergonomics, OpenAI-compatible providers including Nous Portal, and native adapters for Anthropic, Gemini, and Cloudflare Workers AI. Additional provider-specific features can be layered on the same `Provider` interface without changing callers.
+This Go port now covers baochuan's core ergonomics, OpenAI-compatible providers including Nous Portal, native adapters for Anthropic, Gemini, and Cloudflare Workers AI, and initial `AgentProvider` support for Hermes Agent. Additional provider-specific features can be layered on the same `Provider` and `AgentProvider` interfaces without changing callers.
 
 ## License
 
