@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -83,12 +82,20 @@ type geminiFunctionCallingConfig struct {
 }
 
 func (p *GeminiProvider) geminiURL(model, suffix string, stream bool) string {
-	q := url.Values{}
-	q.Set("key", p.apiKey)
+	u := fmt.Sprintf("%s/models/%s:%s", p.baseURL, model, suffix)
 	if stream {
-		q.Set("alt", "sse")
+		return u + "?alt=sse"
 	}
-	return fmt.Sprintf("%s/models/%s:%s?%s", p.baseURL, model, suffix, q.Encode())
+	return u
+}
+
+func (p *GeminiProvider) addGeminiAuth(req *http.Request) {
+	if p.apiKey != "" {
+		req.Header.Set("x-goog-api-key", p.apiKey)
+	}
+	for k, v := range p.headers {
+		req.Header.Set(k, v)
+	}
 }
 
 func toGeminiRequest(req ChatRequest) geminiRequest {
@@ -208,7 +215,7 @@ func (p *GeminiProvider) Chat(ctx context.Context, req ChatRequest) (ChatRespons
 	return fromGeminiResponse(wire, req.Model), nil
 }
 func (p *GeminiProvider) Models(ctx context.Context) ([]ModelInfo, error) {
-	u := p.baseURL + "/models?key=" + url.QueryEscape(p.apiKey)
+	u := p.baseURL + "/models"
 	var wire struct {
 		Models []struct {
 			Name            string `json:"name"`
@@ -222,7 +229,7 @@ func (p *GeminiProvider) Models(ctx context.Context) ([]ModelInfo, error) {
 	out := make([]ModelInfo, 0, len(wire.Models))
 	for _, m := range wire.Models {
 		id := strings.TrimPrefix(m.Name, "models/")
-		out = append(out, ModelInfo{ID: id, OwnedBy: "google", Object: "model", Created: m.InputTokenLimit})
+		out = append(out, ModelInfo{ID: id, OwnedBy: "google", Object: "model", ContextLength: m.InputTokenLimit, DisplayName: m.DisplayName})
 	}
 	return out, nil
 }
@@ -243,9 +250,7 @@ func (p *GeminiProvider) doGeminiJSON(ctx context.Context, method, u string, bod
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	for k, v := range p.headers {
-		req.Header.Set(k, v)
-	}
+	p.addGeminiAuth(req)
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		return err
@@ -314,9 +319,7 @@ func (p *GeminiProvider) StreamChat(ctx context.Context, req ChatRequest) (Chunk
 	}
 	hreq.Header.Set("Content-Type", "application/json")
 	hreq.Header.Set("Accept", "text/event-stream")
-	for k, v := range p.headers {
-		hreq.Header.Set(k, v)
-	}
+	p.addGeminiAuth(hreq)
 	resp, err := p.httpClient.Do(hreq)
 	if err != nil {
 		return nil, err

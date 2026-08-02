@@ -52,10 +52,12 @@ type Delta struct {
 }
 
 type ModelInfo struct {
-	ID      string `json:"id"`
-	Object  string `json:"object,omitempty"`
-	OwnedBy string `json:"owned_by,omitempty"`
-	Created *int64 `json:"created,omitempty"`
+	ID            string `json:"id"`
+	Object        string `json:"object,omitempty"`
+	OwnedBy       string `json:"owned_by,omitempty"`
+	Created       *int64 `json:"created,omitempty"`
+	ContextLength *int64 `json:"context_length,omitempty"`
+	DisplayName   string `json:"name,omitempty"`
 }
 
 type modelListResponse struct {

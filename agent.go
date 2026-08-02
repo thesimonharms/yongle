@@ -240,7 +240,7 @@ func (p *HermesAgentProvider) Name() string { return "hermes-agent" }
 func (p *HermesAgentProvider) Run(ctx context.Context, req AgentRunRequest) (AgentResponse, error) {
 	req.Stream = false
 	var out AgentResponse
-	err := doJSON(ctx, p.httpClient, http.MethodPost, p.responsesURL(), p.apiKey, p.headers, req, &out)
+	err := doJSONProvider(ctx, p.httpClient, p.Name(), http.MethodPost, p.responsesURL(), p.apiKey, p.headers, req, &out)
 	return out, err
 }
 

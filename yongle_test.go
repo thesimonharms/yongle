@@ -20,6 +20,7 @@ func TestChatRequestBuilderBuildsAndValidates(t *testing.T) {
 		System("You are concise.").
 		User("Tell me about Zheng He's treasure ships.").
 		MaxTokens(512).
+		MaxCompletionTokens(256).
 		Temperature(0.2).
 		TopP(0.9).
 		Tool(Tool{Type: "function", Function: &FunctionDefinition{Name: "lookup", Description: "lookup things", Parameters: map[string]any{"type": "object"}}}).
@@ -31,8 +32,53 @@ func TestChatRequestBuilderBuildsAndValidates(t *testing.T) {
 	if req.Model != "deepseek-chat" || len(req.Messages) != 2 || req.MaxTokens == nil || *req.MaxTokens != 512 {
 		t.Fatalf("unexpected request: %#v", req)
 	}
+	if req.MaxCompletionTokens == nil || *req.MaxCompletionTokens != 256 {
+		t.Fatalf("expected max_completion_tokens, got %#v", req.MaxCompletionTokens)
+	}
 	if req.Messages[1].Content.Text() != "Tell me about Zheng He's treasure ships." {
 		t.Fatalf("unexpected content: %#v", req.Messages[1].Content)
+	}
+}
+
+func TestProviderDefaultsMatchCurrentAPIs(t *testing.T) {
+	cases := []struct {
+		name    string
+		baseURL string
+		header  string
+		value   string
+		p       *OpenAICompatibleProvider
+	}{
+		{"deepseek", "https://api.deepseek.com", "", "", NewDeepSeekProvider("k")},
+		{"moonshot", "https://api.moonshot.ai/v1", "", "", NewMoonshotProvider("k")},
+		{"moonshot-cn", "https://api.moonshot.cn/v1", "", "", NewMoonshotCNProvider("k")},
+		{"qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "", "", NewQwenProvider("k")},
+		{"qwen-cn", "https://dashscope.aliyuncs.com/compatible-mode/v1", "", "", NewQwenCNProvider("k")},
+		{"copilot", "https://api.githubcopilot.com", "Copilot-Integration-Id", "copilot-developer-cli", NewCopilotProvider("gh")},
+		{"openai", "https://api.openai.com/v1", "", "", NewOpenAIProvider("k").OpenAICompatibleProvider},
+		{"xai", "https://api.x.ai/v1", "", "", NewXAIProvider("k")},
+		{"mistral", "https://api.mistral.ai/v1", "", "", NewMistralProvider("k")},
+		{"openrouter", "https://openrouter.ai/api/v1", "", "", NewOpenRouterProvider("k")},
+		{"perplexity", "https://api.perplexity.ai", "", "", NewPerplexityProvider("k")},
+		{"nous", "https://inference-api.nousresearch.com/v1", "", "", NewNousProvider("k")},
+		{"ollama", "http://localhost:11434/v1", "", "", NewOllamaProvider()},
+		{"lmstudio", "http://localhost:1234/v1", "", "", NewLMStudioProvider()},
+	}
+	for _, tc := range cases {
+		if tc.p.baseURL != tc.baseURL {
+			t.Fatalf("%s base URL: got %q want %q", tc.name, tc.p.baseURL, tc.baseURL)
+		}
+		if tc.header != "" && tc.p.headers[tc.header] != tc.value {
+			t.Fatalf("%s header %s: got %q want %q", tc.name, tc.header, tc.p.headers[tc.header], tc.value)
+		}
+	}
+	if NewAnthropicProvider("k").baseURL != "https://api.anthropic.com/v1" {
+		t.Fatal("anthropic base URL drift")
+	}
+	if NewGeminiProvider("k").baseURL != "https://generativelanguage.googleapis.com/v1beta" {
+		t.Fatal("gemini base URL drift")
+	}
+	if NewCloudflareProvider("acct", "tok").baseURL != "https://api.cloudflare.com/client/v4" {
+		t.Fatal("cloudflare base URL drift")
 	}
 }
 

@@ -80,22 +80,29 @@ func TestAnthropicNativeChatModelsAndStream(t *testing.T) {
 }
 
 func TestGeminiNativeChatModelsAndStream(t *testing.T) {
-	var chatPath, chatQuery string
+	var chatPath, chatQuery, chatAuth string
 	var chatBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/models/gemini-1.5-flash:generateContent":
+		case r.URL.Path == "/models/gemini-2.5-flash:generateContent":
 			chatPath = r.URL.Path
 			chatQuery = r.URL.RawQuery
+			chatAuth = r.Header.Get("x-goog-api-key")
 			if err := json.NewDecoder(r.Body).Decode(&chatBody); err != nil {
 				t.Fatal(err)
 			}
 			_, _ = w.Write([]byte(`{"candidates":[{"content":{"parts":[{"text":"native Gemini"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":2,"candidatesTokenCount":3,"totalTokenCount":5}}`))
 		case r.URL.Path == "/models":
-			_, _ = w.Write([]byte(`{"models":[{"name":"models/gemini-1.5-flash","displayName":"Gemini Flash","inputTokenLimit":1048576}]}`))
-		case r.URL.Path == "/models/gemini-1.5-flash:streamGenerateContent":
+			if r.Header.Get("x-goog-api-key") != "gemini-key" {
+				t.Fatalf("missing gemini auth header")
+			}
+			_, _ = w.Write([]byte(`{"models":[{"name":"models/gemini-2.5-flash","displayName":"Gemini Flash","inputTokenLimit":1048576}]}`))
+		case r.URL.Path == "/models/gemini-2.5-flash:streamGenerateContent":
 			if r.URL.Query().Get("alt") != "sse" {
 				t.Fatalf("missing alt=sse")
+			}
+			if r.Header.Get("x-goog-api-key") != "gemini-key" {
+				t.Fatalf("missing gemini auth header on stream")
 			}
 			w.Header().Set("Content-Type", "text/event-stream")
 			_, _ = w.Write([]byte("data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Gem\"}]},\"index\":0}]}\n\n"))
@@ -107,12 +114,12 @@ func TestGeminiNativeChatModelsAndStream(t *testing.T) {
 	defer srv.Close()
 
 	provider := NewGeminiProvider("gemini-key", WithBaseURL(srv.URL))
-	resp, err := provider.Chat(context.Background(), mustReq(t, NewChatRequest("gemini-1.5-flash").System("be kind").User("hi").MaxTokens(55).Temperature(0.1)))
+	resp, err := provider.Chat(context.Background(), mustReq(t, NewChatRequest("gemini-2.5-flash").System("be kind").User("hi").MaxTokens(55).Temperature(0.1)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if chatPath == "" || !strings.Contains(chatQuery, "key=gemini-key") {
-		t.Fatalf("bad gemini URL: %s?%s", chatPath, chatQuery)
+	if chatPath == "" || chatAuth != "gemini-key" || strings.Contains(chatQuery, "key=") {
+		t.Fatalf("bad gemini auth/URL: path=%s auth=%q query=%q", chatPath, chatAuth, chatQuery)
 	}
 	if _, ok := chatBody["systemInstruction"]; !ok {
 		t.Fatalf("missing systemInstruction in %#v", chatBody)
@@ -126,11 +133,14 @@ func TestGeminiNativeChatModelsAndStream(t *testing.T) {
 	}
 
 	models, err := provider.Models(context.Background())
-	if err != nil || len(models) != 1 || models[0].ID != "gemini-1.5-flash" || models[0].OwnedBy != "google" {
+	if err != nil || len(models) != 1 || models[0].ID != "gemini-2.5-flash" || models[0].OwnedBy != "google" {
 		t.Fatalf("models %#v err %v", models, err)
 	}
+	if models[0].ContextLength == nil || *models[0].ContextLength != 1048576 || models[0].DisplayName != "Gemini Flash" {
+		t.Fatalf("expected context/display metadata, got %#v", models[0])
+	}
 
-	stream, err := provider.StreamChat(context.Background(), mustReq(t, NewChatRequest("gemini-1.5-flash").User("hi")))
+	stream, err := provider.StreamChat(context.Background(), mustReq(t, NewChatRequest("gemini-2.5-flash").User("hi")))
 	if err != nil {
 		t.Fatal(err)
 	}

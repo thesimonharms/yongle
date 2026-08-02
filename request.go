@@ -3,16 +3,17 @@ package yongle
 import "fmt"
 
 type ChatRequest struct {
-	Model       string             `json:"model"`
-	Messages    []ChatMessage      `json:"messages"`
-	Stream      bool               `json:"stream"`
-	MaxTokens   *uint32            `json:"max_tokens,omitempty"`
-	Temperature *float32           `json:"temperature,omitempty"`
-	TopP        *float32           `json:"top_p,omitempty"`
-	Modalities  []string           `json:"modalities,omitempty"`
-	AudioOutput *AudioOutputConfig `json:"audio,omitempty"`
-	Tools       []Tool             `json:"tools,omitempty"`
-	ToolChoice  *ToolChoice        `json:"tool_choice,omitempty"`
+	Model               string             `json:"model"`
+	Messages            []ChatMessage      `json:"messages"`
+	Stream              bool               `json:"stream"`
+	MaxTokens           *uint32            `json:"max_tokens,omitempty"`
+	MaxCompletionTokens *uint32            `json:"max_completion_tokens,omitempty"`
+	Temperature         *float32           `json:"temperature,omitempty"`
+	TopP                *float32           `json:"top_p,omitempty"`
+	Modalities          []string           `json:"modalities,omitempty"`
+	AudioOutput         *AudioOutputConfig `json:"audio,omitempty"`
+	Tools               []Tool             `json:"tools,omitempty"`
+	ToolChoice          *ToolChoice        `json:"tool_choice,omitempty"`
 }
 
 type AudioOutputConfig struct {
@@ -44,6 +45,13 @@ func (b *ChatRequestBuilder) Assistant(text string) *ChatRequestBuilder {
 }
 func (b *ChatRequestBuilder) Stream(stream bool) *ChatRequestBuilder { b.req.Stream = stream; return b }
 func (b *ChatRequestBuilder) MaxTokens(n uint32) *ChatRequestBuilder { b.req.MaxTokens = &n; return b }
+
+// MaxCompletionTokens sets OpenAI's max_completion_tokens (required for o-series /
+// reasoning models where max_tokens is rejected). Other providers ignore unknown fields.
+func (b *ChatRequestBuilder) MaxCompletionTokens(n uint32) *ChatRequestBuilder {
+	b.req.MaxCompletionTokens = &n
+	return b
+}
 func (b *ChatRequestBuilder) Temperature(v float32) *ChatRequestBuilder {
 	b.req.Temperature = &v
 	return b

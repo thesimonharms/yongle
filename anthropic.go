@@ -200,7 +200,7 @@ func (p *AnthropicProvider) Models(ctx context.Context) ([]ModelInfo, error) {
 	}
 	models := make([]ModelInfo, 0, len(wire.Data))
 	for _, m := range wire.Data {
-		models = append(models, ModelInfo{ID: m.ID, OwnedBy: "anthropic", Object: "model"})
+		models = append(models, ModelInfo{ID: m.ID, OwnedBy: "anthropic", Object: "model", DisplayName: m.DisplayName})
 	}
 	return models, nil
 }

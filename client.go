@@ -81,6 +81,10 @@ func applyOptions(defaultBase string, opts ...ClientOption) clientConfig {
 }
 
 func doJSON(ctx context.Context, client *http.Client, method, url, apiKey string, headers map[string]string, body any, out any) error {
+	return doJSONProvider(ctx, client, "", method, url, apiKey, headers, body, out)
+}
+
+func doJSONProvider(ctx context.Context, client *http.Client, provider, method, url, apiKey string, headers map[string]string, body any, out any) error {
 	var rdr io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -109,7 +113,7 @@ func doJSON(ctx context.Context, client *http.Client, method, url, apiKey string
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		return &Error{StatusCode: resp.StatusCode, Message: strings.TrimSpace(string(b))}
+		return &Error{Provider: provider, StatusCode: resp.StatusCode, Message: strings.TrimSpace(string(b))}
 	}
 	if out == nil {
 		_, _ = io.Copy(io.Discard, resp.Body)

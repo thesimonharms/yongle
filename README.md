@@ -80,23 +80,27 @@ for chunk, err := range stream {
 
 ## Provider constructors
 
-- `NewOpenAIProvider(apiKey, opts...)`
-- `NewNousProvider(apiKey, opts...)`
-- `NewDeepSeekProvider(apiKey, opts...)`
-- `NewXAIProvider(apiKey, opts...)`
-- `NewMistralProvider(apiKey, opts...)`
-- `NewOpenRouterProvider(apiKey, opts...)`
-- `NewMoonshotProvider(apiKey, opts...)`
-- `NewPerplexityProvider(apiKey, opts...)`
-- `NewQwenProvider(apiKey, opts...)`
-- `NewCopilotProvider(githubToken, opts...)`
-- `NewLMStudioProvider(opts...)`
-- `NewOllamaProvider(opts...)`
-- `NewLlamaCPPProvider(baseURL, opts...)`
-- `NewAnthropicProvider(apiKey, opts...)`
-- `NewGeminiProvider(apiKey, opts...)`
-- `NewCloudflareProvider(accountID, apiToken, opts...)`
-- `NewOpenAICompatibleProvider(name, baseURL, apiKey, opts...)`
+| Constructor | Default base URL / notes |
+|---|---|
+| `NewOpenAIProvider` | `https://api.openai.com/v1` (also implements TTS) |
+| `NewDeepSeekProvider` | `https://api.deepseek.com` |
+| `NewXAIProvider` | `https://api.x.ai/v1` |
+| `NewMistralProvider` | `https://api.mistral.ai/v1` |
+| `NewOpenRouterProvider` | `https://openrouter.ai/api/v1` — set `HTTP-Referer` / `X-OpenRouter-Title` (or `X-Title`) via `WithHeader` for app attribution |
+| `NewMoonshotProvider` | `https://api.moonshot.ai/v1` (global Kimi platform) |
+| `NewMoonshotCNProvider` | `https://api.moonshot.cn/v1` (China platform) |
+| `NewPerplexityProvider` | `https://api.perplexity.ai` |
+| `NewNousProvider` | `https://inference-api.nousresearch.com/v1` |
+| `NewQwenProvider` | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
+| `NewQwenCNProvider` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `NewCopilotProvider` | `https://api.githubcopilot.com` — sends `Copilot-Integration-Id: copilot-developer-cli` by default |
+| `NewLMStudioProvider` | `http://localhost:1234/v1` |
+| `NewOllamaProvider` | `http://localhost:11434/v1` |
+| `NewLlamaCPPProvider` | caller-supplied base URL |
+| `NewAnthropicProvider` | `https://api.anthropic.com/v1` (`x-api-key` + `anthropic-version: 2023-06-01`) |
+| `NewGeminiProvider` | `https://generativelanguage.googleapis.com/v1beta` (`x-goog-api-key`) |
+| `NewCloudflareProvider` | `https://api.cloudflare.com/client/v4` |
+| `NewOpenAICompatibleProvider` | custom name + base URL |
 
 Useful options:
 
@@ -104,7 +108,16 @@ Useful options:
 yongle.WithBaseURL("http://localhost:8080/v1")
 yongle.WithHTTPClient(customClient)
 yongle.WithHeader("HTTP-Referer", "https://example.com")
-yongle.WithHeader("X-Title", "My App")
+yongle.WithHeader("X-OpenRouter-Title", "My App")
+```
+
+For OpenAI reasoning / o-series models, prefer `MaxCompletionTokens` over `MaxTokens`:
+
+```go
+req, err := yongle.NewChatRequest("o4-mini").
+    User("Explain Zheng He's voyages briefly.").
+    MaxCompletionTokens(512).
+    Build()
 ```
 
 ## Hermes Agent runs
@@ -155,7 +168,7 @@ _ = os.WriteFile("hello.mp3", audio, 0644)
 
 ## Status
 
-This Go port now covers baochuan's core ergonomics, OpenAI-compatible providers including Nous Portal, native adapters for Anthropic, Gemini, and Cloudflare Workers AI, and initial `AgentProvider` support for Hermes Agent. Additional provider-specific features can be layered on the same `Provider` and `AgentProvider` interfaces without changing callers.
+This Go port covers baochuan's core ergonomics with current upstream defaults: OpenAI-compatible providers (including Nous Portal), regional Moonshot/Qwen endpoints, Copilot integration headers, native Anthropic/Gemini/Cloudflare adapters, OpenAI `max_completion_tokens`, and Hermes `AgentProvider` support. Additional provider-specific features can be layered on the same `Provider` and `AgentProvider` interfaces without changing callers.
 
 ## License
 

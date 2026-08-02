@@ -26,7 +26,7 @@ func (p *OpenAICompatibleProvider) Name() string { return p.providerName }
 func (p *OpenAICompatibleProvider) Chat(ctx context.Context, req ChatRequest) (ChatResponse, error) {
 	req.Stream = false
 	var out ChatResponse
-	err := doJSON(ctx, p.httpClient, http.MethodPost, p.baseURL+"/chat/completions", p.apiKey, p.headers, req, &out)
+	err := doJSONProvider(ctx, p.httpClient, p.providerName, http.MethodPost, p.baseURL+"/chat/completions", p.apiKey, p.headers, req, &out)
 	return out, err
 }
 func (p *OpenAICompatibleProvider) StreamChat(ctx context.Context, req ChatRequest) (ChunkStream, error) {
@@ -60,7 +60,7 @@ func (p *OpenAICompatibleProvider) StreamChat(ctx context.Context, req ChatReque
 }
 func (p *OpenAICompatibleProvider) Models(ctx context.Context) ([]ModelInfo, error) {
 	var out modelListResponse
-	if err := doJSON(ctx, p.httpClient, http.MethodGet, p.baseURL+"/models", p.apiKey, p.headers, nil, &out); err != nil {
+	if err := doJSONProvider(ctx, p.httpClient, p.providerName, http.MethodGet, p.baseURL+"/models", p.apiKey, p.headers, nil, &out); err != nil {
 		return nil, err
 	}
 	return out.Data, nil
@@ -74,12 +74,15 @@ func newOpenAICompatibleDefault(name, defaultBaseURL, apiKey string, opts ...Cli
 	return &OpenAICompatibleProvider{providerName: name, baseURL: cfg.baseURL, apiKey: apiKey, httpClient: cfg.httpClient, headers: cfg.headers}
 }
 
-// Provider constructors with Baochuan-style defaults.
+// Provider constructors with current upstream defaults.
 func NewOpenAIProvider(apiKey string, opts ...ClientOption) *OpenAIProvider {
 	return &OpenAIProvider{OpenAICompatibleProvider: newOpenAICompatibleDefault("openai", "https://api.openai.com/v1", apiKey, opts...)}
 }
+
+// NewDeepSeekProvider uses the official OpenAI-compatible base URL
+// (https://api.deepseek.com). The /v1 alias also works via WithBaseURL.
 func NewDeepSeekProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
-	return newOpenAICompatibleDefault("deepseek", "https://api.deepseek.com/v1", apiKey, opts...)
+	return newOpenAICompatibleDefault("deepseek", "https://api.deepseek.com", apiKey, opts...)
 }
 func NewXAIProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
 	return newOpenAICompatibleDefault("xai", "https://api.x.ai/v1", apiKey, opts...)
@@ -90,7 +93,15 @@ func NewMistralProvider(apiKey string, opts ...ClientOption) *OpenAICompatiblePr
 func NewOpenRouterProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
 	return newOpenAICompatibleDefault("openrouter", "https://openrouter.ai/api/v1", apiKey, opts...)
 }
+
+// NewMoonshotProvider targets the global Kimi Open Platform (api.moonshot.ai).
+// Use NewMoonshotCNProvider for keys issued on the China platform.
 func NewMoonshotProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
+	return newOpenAICompatibleDefault("moonshot", "https://api.moonshot.ai/v1", apiKey, opts...)
+}
+
+// NewMoonshotCNProvider targets the China Moonshot/Kimi platform (api.moonshot.cn).
+func NewMoonshotCNProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
 	return newOpenAICompatibleDefault("moonshot", "https://api.moonshot.cn/v1", apiKey, opts...)
 }
 func NewPerplexityProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
@@ -99,11 +110,23 @@ func NewPerplexityProvider(apiKey string, opts ...ClientOption) *OpenAICompatibl
 func NewNousProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
 	return newOpenAICompatibleDefault("nous", "https://inference-api.nousresearch.com/v1", apiKey, opts...)
 }
+
+// NewQwenProvider uses DashScope OpenAI-compatible mode on the international
+// endpoint. Use NewQwenCNProvider for Beijing-region keys.
 func NewQwenProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
+	return newOpenAICompatibleDefault("qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", apiKey, opts...)
+}
+
+// NewQwenCNProvider uses DashScope OpenAI-compatible mode on the China (Beijing) endpoint.
+func NewQwenCNProvider(apiKey string, opts ...ClientOption) *OpenAICompatibleProvider {
 	return newOpenAICompatibleDefault("qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1", apiKey, opts...)
 }
+
+// NewCopilotProvider talks to api.githubcopilot.com with the integration id
+// required by the Copilot Chat Completions API. Override with WithHeader if needed.
 func NewCopilotProvider(githubToken string, opts ...ClientOption) *OpenAICompatibleProvider {
-	return newOpenAICompatibleDefault("copilot", "https://api.githubcopilot.com", githubToken, opts...)
+	defaults := []ClientOption{WithHeader("Copilot-Integration-Id", "copilot-developer-cli")}
+	return newOpenAICompatibleDefault("copilot", "https://api.githubcopilot.com", githubToken, append(defaults, opts...)...)
 }
 func NewLMStudioProvider(opts ...ClientOption) *OpenAICompatibleProvider {
 	return newOpenAICompatibleDefault("lmstudio", "http://localhost:1234/v1", "", opts...)
